@@ -29,6 +29,17 @@ class Command(BaseCommand):
         site.root_page = rootpage
         site.save()
 
+        # Create example blog page
+        blogpage = Page(
+            title="Blog",
+            content_type=blogpage_content_type,
+            slug='blog',
+        )
+
+        rootpage.add_child(instance=blogpage)
+        revision = rootpage.save_revision()
+        revision.publish()
+
         print "Importing categories..."
         categories = ZinniaCategory.objects.all()
         for category in categories:
@@ -52,15 +63,15 @@ class Command(BaseCommand):
                 first_published_at=entry.start_publication,
                 expire_at=entry.end_publication,
                 latest_revision_created_at=entry.creation_date,
-                url_path='/blog/'+entry.slug,
+                # url_path='/blog/'+entry.slug,
                 # owner=,
                 seo_title=entry.title,
                 # search_description=,
-                depth=2,
+                # depth=2,
             )
 
             if created:
                 # Add blog page as a child for homepage
-                rootpage.add_child(instance=page)
-                revision = rootpage.save_revision()
+                blogpage.add_child(instance=page)
+                revision = blogpage.save_revision()
                 revision.publish()
