@@ -33,7 +33,11 @@ class Command(BaseCommand):
         categories = ZinniaCategory.objects.all()
         for category in categories:
             print "\t%s" % category
-            new_category, created  = PuputCategory.objects.update_or_create(name=category)
+            new_category, created  = PuputCategory.objects.update_or_create(
+                name=category.title,
+                slug=category.slug,
+                description=category.description
+            )
             new_category.save()
 
         print "Importing entries..."
@@ -41,14 +45,22 @@ class Command(BaseCommand):
         for entry in entries:
             # Create example blog page
             print "\t%s" % entry.title
-            blogpage, created = EntryPage.objects.update_or_create(
+            page, created = EntryPage.objects.update_or_create(
                 title=entry.title,
                 body=entry.content,
                 slug=entry.slug,
+                first_published_at=entry.start_publication,
+                expire_at=entry.end_publication,
+                latest_revision_created_at=entry.creation_date,
+                url_path='/blog/'+entry.slug,
+                # owner=,
+                seo_title=entry.title,
+                # search_description=,
+                depth=2,
             )
 
             if created:
                 # Add blog page as a child for homepage
-                rootpage.add_child(instance=blogpage)
-                revision = blogpage.save_revision()
+                rootpage.add_child(instance=page)
+                revision = rootpage.save_revision()
                 revision.publish()
