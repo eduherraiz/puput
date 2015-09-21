@@ -6,6 +6,7 @@ from django.core.management import BaseCommand
 
 from wagtail.wagtailcore.models import Page, Site
 from puput.models import Category as PuputCategory
+from puput.models import CategoryEntryPage as PuputCategoryEntryPage
 from zinnia.models import Category as ZinniaCategory
 from zinnia.models import Entry as ZinniaEntry
 from puput.models import EntryPage
@@ -40,10 +41,10 @@ class Command(BaseCommand):
         revision = rootpage.save_revision()
         revision.publish()
 
-        print "Importing categories..."
+        print("Importing categories...")
         categories = ZinniaCategory.objects.all()
         for category in categories:
-            print "\t%s" % category
+            print("\t%s" % category)
             new_category, created  = PuputCategory.objects.update_or_create(
                 name=category.title,
                 slug=category.slug,
@@ -51,27 +52,36 @@ class Command(BaseCommand):
             )
             new_category.save()
 
-        print "Importing entries..."
+        print("Importing entries...")
         entries = ZinniaEntry.objects.all()
         for entry in entries:
             # Create example blog page
             print "\t%s" % entry.title
-            page, created = EntryPage.objects.update_or_create(
+            page = EntryPage(
                 title=entry.title,
                 body=entry.content,
                 slug=entry.slug,
                 first_published_at=entry.start_publication,
                 expire_at=entry.end_publication,
                 latest_revision_created_at=entry.creation_date,
-                # url_path='/blog/'+entry.slug,
-                # owner=,
+                date=entry.creation_date,
+                owner=entry.authors.first(),
                 seo_title=entry.title,
-                # search_description=,
-                # depth=2,
+                live=entry.is_visible
             )
 
-            if created:
-                # Add blog page as a child for homepage
-                blogpage.add_child(instance=page)
-                revision = blogpage.save_revision()
-                revision.publish()
+            blogpage.add_child(instance=page)
+            revision = blogpage.save_revision()
+            revision.publish()
+
+            ## TODO: Tags for entry
+            # entry.tags field
+
+            ## Categories for entry
+            for category in entry.categories.all():
+                print('\t\tAdd category: %s' % category.title)
+                pc = PuputCategory.objects.get(name=category.title)
+                PuputCategoryEntryPage(category=pc, page=page)
+
+
+
