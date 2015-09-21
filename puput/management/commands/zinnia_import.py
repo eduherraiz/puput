@@ -3,6 +3,7 @@
 from django import VERSION as DJANGO_VERSION
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import BaseCommand
+from django.db import models
 
 from wagtail.wagtailcore.models import Page, Site
 from puput.models import Category as PuputCategory
@@ -10,6 +11,7 @@ from puput.models import CategoryEntryPage as PuputCategoryEntryPage
 from zinnia.models import Category as ZinniaCategory
 from zinnia.models import Entry as ZinniaEntry
 from puput.models import EntryPage
+from wagtail.wagtailimages.models import Image as WagtailImage
 
 class Command(BaseCommand):
     help = "Load Puput data from zinnia blog app"
@@ -55,6 +57,12 @@ class Command(BaseCommand):
         print("Importing entries...")
         entries = ZinniaEntry.objects.all()
         for entry in entries:
+
+            if entry.image:
+                header_image = WagtailImage(file=entry.image)
+            else:
+                header_image = models.SET_NULL
+
             # Create example blog page
             print "\t%s" % entry.title
             page = EntryPage(
@@ -67,7 +75,8 @@ class Command(BaseCommand):
                 date=entry.creation_date,
                 owner=entry.authors.first(),
                 seo_title=entry.title,
-                live=entry.is_visible
+                live=entry.is_visible,
+                header_image=header_image
             )
 
             blogpage.add_child(instance=page)
