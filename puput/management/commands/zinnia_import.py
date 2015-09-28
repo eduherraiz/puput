@@ -3,7 +3,7 @@
 from django import VERSION as DJANGO_VERSION
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import BaseCommand
-from django.db import models
+from django.conf import settings
 
 from wagtail.wagtailcore.models import Page, Site
 from puput.models import Category as PuputCategory
@@ -12,6 +12,7 @@ from zinnia.models import Category as ZinniaCategory
 from zinnia.models import Entry as ZinniaEntry
 from puput.models import EntryPage
 from wagtail.wagtailimages.models import Image as WagtailImage
+
 
 class Command(BaseCommand):
     help = "Load Puput data from zinnia blog app"
@@ -58,16 +59,33 @@ class Command(BaseCommand):
         entries = ZinniaEntry.objects.all()
         for entry in entries:
 
+            print entry.title
+
+            # Header images
             if entry.image:
                 header_image = WagtailImage(file=entry.image)
+                # print header_image.filename
+                header_image.save()
             else:
-                header_image = models.SET_NULL
+                header_image = None
 
-            # Create example blog page
-            print "\t%s" % entry.title
+            # Content images
+            import lxml.html as LH
+            root = LH.fromstring(entry.content)
+            for el in root.iter('img'):
+                if  el.attrib['src'].startswith(settings.MEDIA_URL):
+                    old_image = el.attrib['src'].replace(settings.MEDIA_URL,'')
+                    new_image = WagtailImage(file=settings.MEDIA_ROOT+'/'+old_image)
+                    new_image.save()
+
+                    el.attrib['src'] = new_image
+
+            content = LH.tostring(root, pretty_print=True)
+
+
             page = EntryPage(
                 title=entry.title,
-                body=entry.content,
+                body=content,
                 slug=entry.slug,
                 first_published_at=entry.start_publication,
                 expire_at=entry.end_publication,
@@ -78,7 +96,6 @@ class Command(BaseCommand):
                 live=entry.is_visible,
                 header_image=header_image
             )
-
             blogpage.add_child(instance=page)
             revision = blogpage.save_revision()
             revision.publish()
