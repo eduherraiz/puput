@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
+import os
 from django import VERSION as DJANGO_VERSION
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import BaseCommand
 from django.conf import settings
-
+from django.core.files import File
 from wagtail.wagtailcore.models import Page, Site
 from puput.models import Category as PuputCategory
 from puput.models import CategoryEntryPage as PuputCategoryEntryPage
@@ -65,7 +65,7 @@ class Command(BaseCommand):
 
             # Header images
             if entry.image:
-                header_image = WagtailImage(file=entry.image)
+                header_image = WagtailImage(file=entry.image, title=os.path.basename(entry.image.url))
                 print('\tImported header image: {}'.format(entry.image))
                 header_image.save()
             else:
@@ -77,8 +77,9 @@ class Command(BaseCommand):
             for el in root.iter('img'):
                 if  el.attrib['src'].startswith(settings.MEDIA_URL):
                     old_image = el.attrib['src'].replace(settings.MEDIA_URL, '')
-                    new_image = WagtailImage(file='{}/{}'.format(settings.MEDIA_ROOT, old_image))
-                    print('\t\t{}'.format(old_image))
+                    image_file = open('{}/{}'.format(settings.MEDIA_ROOT, old_image), 'r')
+                    new_image = WagtailImage(file=File(file=image_file, name=os.path.basename(old_image)),
+                                             title=os.path.basename(old_image))
                     new_image.save()
                     el.attrib['src'] = new_image.file.url
                     print '\t\t{}'.format(new_image.file.url)
@@ -101,14 +102,6 @@ class Command(BaseCommand):
                 header_image=header_image
             )
 
-            print("\tImporting tags...")
-            for entry_tag in entry.tags_list: # tags de zinnia
-                print('\t\t{}'.format(entry_tag))
-                tag, created = PuputTag.objects.update_or_create(name=entry_tag)
-                page.entry_tags.add(PuputTagEntryPage(tag=tag))
-                page.save()
-                page.save_revision()
-
             blogpage.add_child(instance=page)
             revision = blogpage.save_revision()
             revision.publish()
@@ -120,4 +113,10 @@ class Command(BaseCommand):
                 PuputCategoryEntryPage(category=pc, page=page)
 
 
-
+            print("\tImporting tags...")
+            for entry_tag in entry.tags_list: # tags de zinnia
+                print('\t\t{}'.format(entry_tag))
+                tag, created = PuputTag.objects.update_or_create(name=entry_tag)
+                page.entry_tags.add(PuputTagEntryPage(tag=tag))
+                page.save()
+                page.save_revision()
